@@ -22,12 +22,17 @@ class _DesktopPageState extends State<DesktopPage> {
   // Track selected prompts by index
   final Set<int> _selectedPrompts = {};
 
-  // Add Gemini API configuration
-  final String _geminiApiKey = 'AIzaSyDJpW9h_UIh7xYPOnki-2GAY0mLn6xGcWQ';
-  final String _geminiApiUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-lite:generateContent';
+  String getPromptStyle() {
+  if (_selectedPrompts.isEmpty) {
+    return "None"; 
+  } else if (_selectedPrompts.length == 2) {
+    return "Blend of Casual and Formal";
+  } else {
+    return prompt[_selectedPrompts.first];
+  }
+}
 
-  // Replace _callPromptApi with Gemini implementation
+  // Replace the existing _callPromptApi with this new version
   Future<void> _callPromptApi() async {
     if (_textController.text.trim().isEmpty || _selectedPrompts.isEmpty) return;
 
@@ -39,80 +44,35 @@ class _DesktopPageState extends State<DesktopPage> {
 
     try {
       String userQuery = _textController.text.trim();
-      String promptStyle = prompt[_selectedPrompts.first];
+      String promptStyle = getPromptStyle();
+      print('Sending prompt: $promptStyle with query: $userQuery');
 
-      print('Sending request to Gemini API...');
-      print('Query: $userQuery');
-      print('Style: $promptStyle');
-
-      // Prepare Gemini request body
-      final geminiBody = {
-        "contents": [
-          {
-            "parts": [
-              {
-                "text":
-                    promptStyle == "Casual and Creative"
-                        ? "Respond in a casual and creative way to this query: $userQuery. Be friendly and use simple language."
-                        : "Provide a formal and analytical response to this query: $userQuery. Use professional language and structured analysis.",
-              },
-            ],
-          },
-        ],
-      };
-
-      print('Request body: ${jsonEncode(geminiBody)}');
-
-      final geminiResponse = await http.post(
-        Uri.parse('$_geminiApiUrl?key=$_geminiApiKey'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_geminiApiKey',
-        },
-        body: jsonEncode(geminiBody),
+      final response = await http.post(
+        Uri.parse('http://localhost:8000/prompt'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'user_id': 'user123', 'query': userQuery, 'style': promptStyle}),
       );
 
-      print('Response status: ${geminiResponse.statusCode}');
-      print('Response body: ${geminiResponse.body}');
-
-      if (geminiResponse.statusCode == 200) {
-        final geminiData = jsonDecode(geminiResponse.body);
-        String generatedText =
-            geminiData['candidates'][0]['content']['parts'][0]['text'];
-
-        // Send to backend for storage
-        final backendResponse = await http.post(
-          Uri.parse('http://localhost:8000/prompt'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'user_id': 'user123',
-            'query': userQuery,
-            'casual_response':
-                promptStyle == "Casual and Creative" ? generatedText : "",
-            'formal_response':
-                promptStyle == "Formal and Analytical" ? generatedText : "",
-          }),
-        );
-
-        if (backendResponse.statusCode == 200) {
-          setState(() {
-            if (promptStyle == "Casual and Creative") {
-              casualResponse = generatedText;
-            } else {
-              formalResponse = generatedText;
-            }
-          });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          if (promptStyle == "Blend of Casual and Formal") {
+          casualResponse = data['casual_response'];
+          formalResponse = data['formal_response'];
+        } else if (promptStyle == "Casual and Creative") {
+          casualResponse = data['casual_response'];
+        } else {
+          formalResponse = data['formal_response'];
         }
+        });
       } else {
-        throw Exception(
-          'Failed to get response: ${geminiResponse.statusCode} ${geminiResponse.body}',
-        );
+        throw Exception('Failed to get response from server');
       }
     } catch (e) {
-      print('Error calling Gemini API: $e');
+      print('Error: $e');
       setState(() {
         casualResponse = 'Error: $e';
-        formalResponse = 'Failed to get response from AI';
+        formalResponse = 'Failed to get response from server';
       });
     } finally {
       setState(() {
@@ -166,6 +126,9 @@ class _DesktopPageState extends State<DesktopPage> {
                                           if (isSelected) {
                                             _selectedPrompts.remove(index);
                                           } else {
+                                            if (_selectedPrompts.length == 2) {
+                                              _selectedPrompts.remove(_selectedPrompts.first);
+                                            }
                                             _selectedPrompts.add(index);
                                           }
                                         });

@@ -12,34 +12,37 @@ class ResponsiveDrawer extends StatelessWidget {
           Column(
             children: [
               DrawerHeader(
-                  child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    decoration: InputDecoration(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
                         hintText: 'Search',
                         prefixIcon: Icon(Icons.search),
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12))),
-                  ),
-                  SizedBox(
-                    height: 30,
-                  ),
-                  InkWell(
-                    onTap: () {},
-                    child: Container(
-                      height: 40,
-                      width: 120,
-                      decoration: BoxDecoration(
-                          image: DecorationImage(
-                              image: AssetImage('assets/Image/logo.png'),
-                              fit: BoxFit.fitWidth)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              )),
+                    SizedBox(height: 30),
+                    InkWell(
+                      onTap: () {},
+                      child: Container(
+                        height: 40,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          image: DecorationImage(
+                            image: AssetImage('assets/Image/logo.png'),
+                            fit: BoxFit.fitWidth,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Container(child: ListTile(title: Text('Python Code Review'))),
-              Container(child: ListTile(title: Text('Debug this code for me')))
+              Container(child: ListTile(title: Text('Debug this code for me'))),
             ],
           ),
           Padding(
@@ -49,7 +52,8 @@ class ResponsiveDrawer extends StatelessWidget {
                 child: CircleAvatar(
                   radius: 25,
                   child: Image.network(
-                      'https://th.bing.com/th?id=OIP.PO6DY2_pU6bY1TlbnQdtQQHaHa&w=250&h=250&c=8&rs=1&qlt=90&o=6&dpr=1.3&pid=3.1&rm=2'),
+                    'https://th.bing.com/th?id=OIP.PO6DY2_pU6bY1TlbnQdtQQHaHa&w=250&h=250&c=8&rs=1&qlt=90&o=6&dpr=1.3&pid=3.1&rm=2',
+                  ),
                 ),
               ),
               title: Text(

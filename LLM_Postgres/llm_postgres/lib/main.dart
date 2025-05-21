@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:llm_postgres/Pages/desktop_page.dart';
 
-
-
-
-
-
 void main(){
   runApp(MyApp());
 }

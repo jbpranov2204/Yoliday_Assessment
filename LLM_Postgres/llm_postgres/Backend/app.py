@@ -5,6 +5,8 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 import logging
+import requests
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,6 +27,10 @@ DB_CONFIG = {
     'port': os.getenv('DB_PORT', '5432')
 }
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = os.getenv("GEMINI_API_URL")
+
+
 def get_db_connection():
     try:
         logger.debug(f"Attempting to connect to database with config: {DB_CONFIG}")
@@ -42,32 +48,6 @@ def init_db():
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # First create the database if it doesn't exist
-        cur.execute("SELECT 1 FROM pg_database WHERE datname = 'llm_postgres'")
-        exists = cur.fetchone()
-        
-        if not exists:
-            # Close the current connection to create new database
-            cur.close()
-            conn.close()
-            
-            # Connect to default postgres database to create new database
-            conn = psycopg2.connect(
-                dbname='postgres',
-                user=DB_CONFIG['user'],
-                password=DB_CONFIG['password'],
-                host=DB_CONFIG['host']
-            )
-            conn.autocommit = True
-            cur = conn.cursor()
-            cur.execute('CREATE DATABASE llm_postgres')
-            cur.close()
-            conn.close()
-            
-            # Reconnect to new database
-            conn = get_db_connection()
-            cur = conn.cursor()
-        
         # Create table
         cur.execute('''
             CREATE TABLE IF NOT EXISTS prompts (
@@ -80,9 +60,9 @@ def init_db():
             )
         ''')
         conn.commit()
-        print("Database initialized successfully!")
+        print("table created successfully!")
     except Exception as e:
-        print(f"Error initializing database: {e}")
+        print(f"Error creating table: {e}")
         raise
     finally:
         if cur:
@@ -90,8 +70,36 @@ def init_db():
         if conn:
             conn.close()
 
-# Initialize database on startup
 init_db()
+
+def get_gemini_response(query, style):
+
+    full_url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
+    try:
+        prompt = "Respond in a casual and creative way" if style == "casual" else "Provide a formal and analytical response"
+        payload = {
+            "contents": [{
+                "parts": [{
+                    "text": f"{prompt} to this query: {query}"
+                }]
+            }]
+        }
+        
+        response = requests.post(
+            full_url,
+            headers={'Content-Type': 'application/json'},
+            json=payload
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result['candidates'][0]['content']['parts'][0]['text']
+        else:
+            logger.error(f"Gemini API error: {response.text}")
+            return None
+    except Exception as e:
+        logger.error(f"Error calling Gemini API: {e}")
+        return None
 
 @app.route('/prompt', methods=['POST'])
 def create_prompt():
@@ -99,12 +107,15 @@ def create_prompt():
         data = request.json
         logger.debug(f"Received POST request with data: {data}")
         
-        if not data or 'user_id' not in data or 'query' not in data:
+        if not data or not all(k in data for k in ['user_id', 'query']):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        # Mock responses for demonstration
-        casual_response = f"Hey! Let me explain {data['query']} in a casual way..."
-        formal_response = f"Here is a formal analysis of {data['query']}..."
+        # Get responses from Gemini API
+        casual_response = get_gemini_response(data['query'], "casual")
+        formal_response = get_gemini_response(data['query'], "formal")
+        
+        if not casual_response or not formal_response:
+            return jsonify({'error': 'Failed to get AI response'}), 500
         
         conn = None
         try:
@@ -169,7 +180,6 @@ if __name__ == '__main__':
     print("Starting Flask server on http://localhost:8000")
     try:
         init_db()
-        print("Database initialized successfully!")
         app.run(host='0.0.0.0', port=8000, debug=True)
     except Exception as e:
         print(f"Error starting server: {e}")
