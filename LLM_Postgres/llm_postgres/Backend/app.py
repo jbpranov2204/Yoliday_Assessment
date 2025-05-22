@@ -56,6 +56,7 @@ def init_db():
                 query TEXT NOT NULL,
                 casual_response TEXT NOT NULL,
                 formal_response TEXT NOT NULL,
+                blended_response TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -76,7 +77,14 @@ def get_gemini_response(query, style):
 
     full_url = f"{GEMINI_API_URL}?key={GEMINI_API_KEY}"
     try:
-        prompt = "Respond in a casual and creative way" if style == "casual" else "Provide a formal and analytical response"
+        
+        if style == "casual":
+            prompt = "Respond in a casual and creative way"
+        elif style == "formal":
+            prompt = "Provide a formal response shortly"
+        else:
+            prompt = "Respond as a blend of both casual and formal styles"
+        
         payload = {
             "contents": [{
                 "parts": [{
@@ -113,8 +121,9 @@ def create_prompt():
         # Get responses from Gemini API
         casual_response = get_gemini_response(data['query'], "casual")
         formal_response = get_gemini_response(data['query'], "formal")
-        
-        if not casual_response or not formal_response:
+        blended_response = get_gemini_response(data['query'], "both")
+
+        if not casual_response or not formal_response or not blended_response:
             return jsonify({'error': 'Failed to get AI response'}), 500
         
         conn = None
@@ -122,19 +131,21 @@ def create_prompt():
             conn = get_db_connection()
             cur = conn.cursor()
             cur.execute('''
-                INSERT INTO prompts (user_id, query, casual_response, formal_response)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO prompts (user_id, query, casual_response, formal_response, blended_response)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id
-            ''', (data['user_id'], data['query'], casual_response, formal_response))
-            
+            ''', (data['user_id'], data['query'], casual_response, formal_response, blended_response))
+
             new_id = cur.fetchone()[0]
             conn.commit()
             cur.close()
             
+            # Include AI responses in the API response
             return jsonify({
                 'id': new_id,
                 'casual_response': casual_response,
-                'formal_response': formal_response
+                'formal_response': formal_response,
+                'blended_response': blended_response
             })
         except Exception as e:
             logger.error(f"Database error: {e}")
@@ -156,7 +167,7 @@ def get_prompts():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('''
-        SELECT id, query, casual_response, formal_response, created_at
+        SELECT id, query, casual_response, formal_response, blended_response, created_at
         FROM prompts
         WHERE user_id = %s
         ORDER BY created_at DESC
@@ -171,9 +182,10 @@ def get_prompts():
         'query': row[1],
         'casual_response': row[2],
         'formal_response': row[3],
-        'created_at': row[4].isoformat()
+        'blended_response': row[4],
+        'created_at': row[5].isoformat()
     } for row in rows]
-    
+
     return jsonify(prompts)
 
 if __name__ == '__main__':

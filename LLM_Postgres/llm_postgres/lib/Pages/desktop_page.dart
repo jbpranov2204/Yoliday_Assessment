@@ -15,6 +15,7 @@ class _DesktopPageState extends State<DesktopPage> {
   String? codeReviewOutput;
   String? casualResponse;
   String? formalResponse;
+  String? blendedResponse;
   bool isTyping = false;
   final List<String> prompt = ["Casual and Creative", "Formal and Analytical"];
   final TextEditingController _textController = TextEditingController();
@@ -23,14 +24,27 @@ class _DesktopPageState extends State<DesktopPage> {
   final Set<int> _selectedPrompts = {};
 
   String getPromptStyle() {
-  if (_selectedPrompts.isEmpty) {
-    return "None"; 
-  } else if (_selectedPrompts.length == 2) {
-    return "Blend of Casual and Formal";
-  } else {
-    return prompt[_selectedPrompts.first];
+    if (_selectedPrompts.isEmpty) {
+      return "None";
+    } else if (_selectedPrompts.length == 2) {
+      return "both"; // Updated to match the system instruction
+    } else {
+      return prompt[_selectedPrompts.first];
+    }
   }
-}
+
+//   String _formatBulletPoints(String text) {
+//   final lines = text.split('\n');
+//   return lines.map((line) {
+//     final trimmed = line.trim();
+//     if (trimmed.isEmpty) return '';
+//     if (RegExp(r'^[-•\u2022\d.\)]').hasMatch(trimmed)) {
+//       // Already looks like a list item, prefix with bullet
+//       return '• ${trimmed.replaceFirst(RegExp(r'^[-•\u2022\d.\)]\\s*'), '')}';
+//     }
+//     return trimmed;
+//   }).join('\n');
+// }
 
   // Replace the existing _callPromptApi with this new version
   Future<void> _callPromptApi() async {
@@ -50,20 +64,23 @@ class _DesktopPageState extends State<DesktopPage> {
       final response = await http.post(
         Uri.parse('http://localhost:8000/prompt'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'user_id': 'user123', 'query': userQuery, 'style': promptStyle}),
+        body: jsonEncode({
+          'user_id': 'user123',
+          'query': userQuery,
+          'style': promptStyle,
+        }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          if (promptStyle == "Blend of Casual and Formal") {
-          casualResponse = data['casual_response'];
-          formalResponse = data['formal_response'];
-        } else if (promptStyle == "Casual and Creative") {
-          casualResponse = data['casual_response'];
-        } else {
-          formalResponse = data['formal_response'];
-        }
+          if (promptStyle == "both") {
+            blendedResponse = data['blended_response'];
+          } else if (promptStyle == "Casual and Creative") {
+            casualResponse = data['casual_response'];
+          } else {
+            formalResponse = data['formal_response'];
+          }
         });
       } else {
         throw Exception('Failed to get response from server');
@@ -73,6 +90,7 @@ class _DesktopPageState extends State<DesktopPage> {
       setState(() {
         casualResponse = 'Error: $e';
         formalResponse = 'Failed to get response from server';
+        blendedResponse = 'Failed to get response from server';
       });
     } finally {
       setState(() {
@@ -127,7 +145,9 @@ class _DesktopPageState extends State<DesktopPage> {
                                             _selectedPrompts.remove(index);
                                           } else {
                                             if (_selectedPrompts.length == 2) {
-                                              _selectedPrompts.remove(_selectedPrompts.first);
+                                              _selectedPrompts.remove(
+                                                _selectedPrompts.first,
+                                              );
                                             }
                                             _selectedPrompts.add(index);
                                           }
@@ -253,6 +273,7 @@ class _DesktopPageState extends State<DesktopPage> {
                           codeReviewOutput = null;
                           casualResponse = null;
                           formalResponse = null;
+                          blendedResponse = null;
                         });
                       },
                       onSubmitted: (_) {
@@ -264,40 +285,62 @@ class _DesktopPageState extends State<DesktopPage> {
                     ),
                   ),
                   // Show both responses
-                  if (casualResponse != null || formalResponse != null)
+                  if (casualResponse != null || formalResponse != null || blendedResponse != null)
                     Padding(
                       padding: const EdgeInsets.all(20.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (casualResponse != null)
+                          if (blendedResponse != null)
                             Container(
                               margin: const EdgeInsets.only(bottom: 10),
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade800,
+                                color: Colors.blue,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                "Casual/Creative:\n$casualResponse",
+                                "Blended Response:\n${blendedResponse!}",
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Colors.black,
                                   fontSize: 14,
                                 ),
                               ),
                             ),
-                          if (formalResponse != null)
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.shade800,
-                                borderRadius: BorderRadius.circular(8),
+                          if (casualResponse != null)
+                            Padding(
+                              padding: const EdgeInsets.all(10.0),
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "Casual Response:\n${casualResponse!}",
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
-                              child: Text(
-                                "Formal/Analytical:\n$formalResponse",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
+                            ),
+                          if (formalResponse != null)
+                            Padding(
+                              padding: const EdgeInsets.all(10.0),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 69, 162, 238),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  "Formal Response:\n${formalResponse!}",
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                             ),
