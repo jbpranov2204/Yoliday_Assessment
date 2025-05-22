@@ -20,33 +20,18 @@ class _DesktopPageState extends State<DesktopPage> {
   final List<String> prompt = ["Casual and Creative", "Formal and Analytical"];
   final TextEditingController _textController = TextEditingController();
 
-  // Track selected prompts by index
   final Set<int> _selectedPrompts = {};
 
   String getPromptStyle() {
     if (_selectedPrompts.isEmpty) {
       return "None";
     } else if (_selectedPrompts.length == 2) {
-      return "both"; // Updated to match the system instruction
+      return "both";
     } else {
       return prompt[_selectedPrompts.first];
     }
   }
 
-//   String _formatBulletPoints(String text) {
-//   final lines = text.split('\n');
-//   return lines.map((line) {
-//     final trimmed = line.trim();
-//     if (trimmed.isEmpty) return '';
-//     if (RegExp(r'^[-•\u2022\d.\)]').hasMatch(trimmed)) {
-//       // Already looks like a list item, prefix with bullet
-//       return '• ${trimmed.replaceFirst(RegExp(r'^[-•\u2022\d.\)]\\s*'), '')}';
-//     }
-//     return trimmed;
-//   }).join('\n');
-// }
-
-  // Replace the existing _callPromptApi with this new version
   Future<void> _callPromptApi() async {
     if (_textController.text.trim().isEmpty || _selectedPrompts.isEmpty) return;
 
@@ -264,7 +249,7 @@ class _DesktopPageState extends State<DesktopPage> {
                           onPressed:
                               isTyping || _textController.text.trim().isEmpty
                                   ? null
-                                  : _callPromptApi, // Change this line
+                                  : _callPromptApi,
                           tooltip: 'Send',
                         ),
                       ),
@@ -279,12 +264,11 @@ class _DesktopPageState extends State<DesktopPage> {
                       onSubmitted: (_) {
                         if (!isTyping &&
                             _textController.text.trim().isNotEmpty) {
-                          _callPromptApi(); // Change this line
+                          _callPromptApi();
                         }
                       },
                     ),
                   ),
-                  // Show both responses
                   if (casualResponse != null || formalResponse != null || blendedResponse != null)
                     Padding(
                       padding: const EdgeInsets.all(20.0),
